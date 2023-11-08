@@ -1184,7 +1184,7 @@ class MenuControl(BaseMonoControl, UserDict):
             }
         elif self.type == ControlType.INTEGER_MENU:
             self.data = {
-                item.index: int(item.name)
+                item.index: item.value
                 for item in iter_read_menu(self.device._fobj, self)
             }
         else:

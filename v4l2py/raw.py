@@ -1236,12 +1236,22 @@ class v4l2_query_ext_ctrl(ctypes.Structure):
 
 
 class v4l2_querymenu(ctypes.Structure):
+    class _u(ctypes.Union):
+        _fields_ = [
+            ("name", ctypes.c_char * 32),
+            ("value", ctypes.c_int64),
+        ]
+
+
     _fields_ = [
         ("id", ctypes.c_uint32),
         ("index", ctypes.c_uint32),
-        ("name", ctypes.c_char * 32),
+        ("_u", _u),
         ("reserved", ctypes.c_uint32),
     ]
+
+    _anonymous_ = ("_u",)
+    _pack_ = True
 
 
 NONE = 0x0000
