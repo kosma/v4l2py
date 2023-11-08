@@ -244,9 +244,10 @@ def frame_sizes(fd, pixel_formats):
     return sizes
 
 
-def read_capabilities(fd):
+def read_capabilities(fd, is_subdev=False):
     caps = raw.v4l2_capability()
-    ioctl(fd, IOC.QUERYCAP, caps)
+    if not is_subdev:
+        ioctl(fd, IOC.QUERYCAP, caps)
     return caps
 
 
@@ -272,7 +273,9 @@ def iter_read_formats(fd, type):
         yield image_format
 
 
-def iter_read_inputs(fd):
+def iter_read_inputs(fd, is_subdev=False):
+    if is_subdev:
+        return
     input = raw.v4l2_input()
     for inp in iter_read(fd, IOC.ENUMINPUT, input):
         input_type = Input(
@@ -315,8 +318,8 @@ def iter_read_menu(fd, ctrl):
         yield copy.deepcopy(menu)
 
 
-def read_info(fd):
-    caps = read_capabilities(fd)
+def read_info(fd, is_subdev=False):
+    caps = read_capabilities(fd, is_subdev=is_subdev)
     version_tuple = (
         (caps.version & 0xFF0000) >> 16,
         (caps.version & 0x00FF00) >> 8,
@@ -368,7 +371,7 @@ def read_info(fd):
         buffers=buffers,
         formats=image_formats,
         frame_sizes=frame_sizes(fd, pixel_formats),
-        inputs=list(iter_read_inputs(fd)),
+        inputs=list(iter_read_inputs(fd, is_subdev=is_subdev)),
         controls=list(iter_read_controls(fd)),
     )
 
@@ -636,7 +639,7 @@ class ReentrantContextManager:
 
 
 class Device(ReentrantContextManager):
-    def __init__(self, name_or_file, read_write=True, io=IO, legacy_controls=False):
+    def __init__(self, name_or_file, read_write=True, io=IO, legacy_controls=False, is_subdev=None):
         super().__init__()
         self.info = None
         self.controls = None
@@ -660,6 +663,9 @@ class Device(ReentrantContextManager):
         self.filename = filename
         self.index = device_number(filename)
         self.legacy_controls = legacy_controls
+        self.is_subdev = is_subdev
+        if self.is_subdev is None:
+            self.is_subdev = ("subdev" in str(self.filename))
 
     def __repr__(self):
         return f"<{type(self).__name__} name={self.filename}, closed={self.closed}>"
@@ -678,7 +684,7 @@ class Device(ReentrantContextManager):
         return cls("/dev/video{}".format(did), **kwargs)
 
     def _init(self):
-        self.info = read_info(self.fileno())
+        self.info = read_info(self.fileno(), self.is_subdev)
         if self.legacy_controls:
             self.controls = LegacyControls.from_device(self)
         else:
