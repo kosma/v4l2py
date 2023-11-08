@@ -570,6 +570,16 @@ def set_control(fd, id, value):
     ioctl(fd, IOC.S_CTRL, control)
 
 
+def get_ext_control(fd, id):
+    control = raw.v4l2_ext_control(id)
+    controls = raw.v4l2_ext_controls()
+    controls.ctrl_class = raw.V4L2_CTRL_ID2CLASS(id)
+    controls.count = 1
+    controls.controls = ctypes.pointer(control)
+    ioctl(fd, IOC.G_EXT_CTRLS, control)
+    return control
+
+
 def get_priority(fd) -> Priority:
     priority = raw.enum()
     ioctl(fd, IOC.G_PRIORITY, priority)
@@ -1134,6 +1144,10 @@ class IntegerControl(BaseNumericControl):
 class Integer64Control(BaseNumericControl):
     lower_bound = -(2**63)
     upper_bound = 2**63 - 1
+
+    def _get_control(self):
+        control = get_ext_control(self.device, self.id)
+        return control.value64
 
 
 class U8Control(BaseNumericControl):
